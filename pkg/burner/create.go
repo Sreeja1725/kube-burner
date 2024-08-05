@@ -223,7 +223,6 @@ func (ex *Executor) replicaHandler(labels map[string]string, obj object, ns stri
 		wg.Add(1)
 		go func(r int) {
 			defer wg.Done()
-			var newObject = new(unstructured.Unstructured)
 			templateData := map[string]interface{}{
 				jobName:      ex.Name,
 				jobIteration: iteration,
@@ -239,27 +238,25 @@ func (ex *Executor) replicaHandler(labels map[string]string, obj object, ns stri
 				log.Fatalf("Template error in %s: %s", obj.ObjectTemplate, err)
 			}
 			// Re-decode rendered object
-			yamlToUnstructured(obj.ObjectTemplate, renderedObj, newObject)
-
-			for k, v := range newObject.GetLabels() {
-				copiedLabels[k] = v
-			}
-			newObject.SetLabels(copiedLabels)
-			setMetadataLabels(newObject, copiedLabels)
-
-			// replicaWg is necessary because we want to wait for all replicas
-			// to be created before running any other action such as verify objects,
-			// wait for ready, etc. Without this wait group, running for example,
-			// verify objects can lead into a race condition when some objects
-			// hasn't been created yet
-			replicaWg.Add(1)
-			go func(n string) {
-				if !obj.Namespaced {
-					n = ""
+			gvrs, newObjects := yamlToUnstructuredList(renderedObj)
+			for i, object := range newObjects {
+				for k, v := range object.GetLabels() {
+					copiedLabels[k] = v
 				}
-				createRequest(obj.gvr, n, newObject, ex.MaxWaitTimeout)
-				replicaWg.Done()
-			}(ns)
+				object.SetLabels(copiedLabels)
+				setMetadataLabels(object, copiedLabels)
+
+				// replicaWg is necessary because we want to wait for all replicas
+				// to be created before running any other action such as verify objects,
+				// wait for ready, etc. Without this wait group, running for example,
+				// verify objects can lead into a race condition when some objects
+				// hasn't been created yet
+				replicaWg.Add(1)
+				go func(gvr schema.GroupVersionResource, ns string, obj *unstructured.Unstructured) {
+					createRequest(gvr, ns, obj, ex.MaxWaitTimeout)
+					replicaWg.Done()
+				}(gvrs[i], ns, object)
+			}
 		}(r)
 	}
 	wg.Wait()

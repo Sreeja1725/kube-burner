@@ -15,13 +15,16 @@
 package burner
 
 import (
+	"bytes"
 	"context"
 	"fmt"
+	"io"
 	"math"
 	"regexp"
 	"strings"
 	"time"
 
+	goyaml "github.com/go-yaml/yaml"
 	"github.com/kube-burner/kube-burner/pkg/util"
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -144,4 +147,48 @@ func newRESTMapper() meta.RESTMapper {
 		log.Fatal(err)
 	}
 	return restmapper.NewDiscoveryRESTMapper(apiGroupResouces)
+}
+
+func splitYAML(resources []byte) ([][]byte, error) {
+	dec := goyaml.NewDecoder(bytes.NewReader(resources))
+
+	var res [][]byte
+	for {
+		var value interface{}
+		err := dec.Decode(&value)
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return nil, err
+		}
+		valueBytes, err := goyaml.Marshal(value)
+		if err != nil {
+			return nil, err
+		}
+		res = append(res, valueBytes)
+	}
+	return res, nil
+}
+
+func yamlToUnstructuredList(input []byte) (gvrs []schema.GroupVersionResource, uns []*unstructured.Unstructured) {
+	yamls, err := splitYAML(input)
+	if err != nil {
+		log.Fatalf("Error spliting YAML: %s", err)
+	}
+
+	fmt.Println(len(yamls))
+
+	for _, yaml := range yamls {
+		un := new(unstructured.Unstructured)
+		o, gvk, err := scheme.Codecs.UniversalDeserializer().Decode(yaml, nil, un)
+		log.Infof("gvk: %s, obj: %s", gvk, o.GetObjectKind())
+		if err != nil {
+			log.Fatalf("Error decoding YAML: %s", err)
+		}
+		uns = append(uns, un)
+		gvr, _ := meta.UnsafeGuessKindToResource(*gvk)
+		gvrs = append(gvrs, gvr)
+	}
+	return gvrs, uns
 }
