@@ -1,0 +1,128 @@
+apiVersion: v1
+data:
+  userdata: I2Nsb3VkLWNvbmZpZwoiZnFkbiI6IHwtCiAgYmFyLnt7e2lwX2RlZmF1bHR9fX0uZm9vCiJob3N0bmFtZSI6IHwtCiAgYmFyLXt7e2lwX2RlZmF1bHR9fX0KICA=
+kind: Secret
+metadata:
+  name: secret-{{.name}}-{{.Replica}}
+type: Opaque
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  finalizers:
+  - kubernetes.io/pvc-protection
+  labels:
+    copy-method: cow
+  name: pvc-{{.name}}-{{.Replica}}
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 8Gi
+  storageClassName: ndi-csi
+---
+apiVersion: kubevirt.io/v1
+kind: VirtualMachineInstance
+metadata:
+  labels:
+    ngn2.nvidia.com/vmiPerfClass: ga10g_4.br20_small
+  name: vmi-{{.name}}-{{.Replica}}
+spec:
+  domain:
+    devices:
+      disks:
+      - disk:
+          bus: virtio
+        name: rootdisk
+      - disk:
+          bus: virtio
+        name: cloudinitdisk
+      interfaces:
+      - bridge: {}
+        model: virtio
+        name: APP
+      - name: STORAGE
+        sriov: {}
+      - name: STREAM
+        sriov: {}
+    resources:
+      requests:
+        memory: 2Gi
+  evictionStrategy: None
+  networks:
+  - name: APP
+    pod: {}
+  - multus:
+      networkName: default/ovn-storage
+    name: STORAGE
+  - multus:
+      networkName: default/ovn-stream
+"perf-test-config/templates/vmi.yaml" 69L, 1462B                                                       24,3          Top
+apiVersion: v1
+data:
+kind: Secret
+metadata:
+  name: secret-{{.name}}-{{.Replica}}
+type: Opaque
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  finalizers:
+  - kubernetes.io/pvc-protection
+  labels:
+    copy-method: cow
+  name: pvc-{{.name}}-{{.Replica}}
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: 8Gi
+  storageClassName: ndi-csi
+---
+apiVersion: kubevirt.io/v1
+kind: VirtualMachineInstance
+metadata:
+  labels:
+    ngn2.nvidia.com/vmiPerfClass: ga10g_4.br20_small
+  name: vmi-{{.name}}-{{.Replica}}
+spec:
+  domain:
+    devices:
+      disks:
+      - disk:
+          bus: virtio
+        name: rootdisk
+      - disk:
+          bus: virtio
+        name: cloudinitdisk
+      interfaces:
+      - bridge: {}
+        model: virtio
+        name: APP
+      - name: STORAGE
+        sriov: {}
+      - name: STREAM
+        sriov: {}
+    resources:
+      requests:
+        memory: 2Gi
+  evictionStrategy: None
+  networks:
+  - name: APP
+    pod: {}
+  - multus:
+      networkName: default/ovn-storage
+    name: STORAGE
+  - multus:
+      networkName: default/ovn-stream
+    name: STREAM
+  volumes:
+  - name: rootdisk
+    persistentVolumeClaim:
+      claimName: pvc-{{.name}}-{{.Replica}}
+  - cloudInitNoCloud:
+      secretRef:
+        name: secret-{{.name}}-{{.Replica}}

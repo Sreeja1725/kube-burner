@@ -1,0 +1,33 @@
+global:
+  prometheusURL: https://localhost:9090
+  metricsProfile: metrics/metrics.yaml
+  indexerConfig:
+    enabled: true
+    type: local
+    metricsDirectory: metrics/result
+    createTarball: true
+    tarballName: metrics.tgz
+jobs:
+  - name: cluster-saturation
+    jobType: create
+    jobIterations: 1
+    qps: 20
+    burst: 20
+    cleanup: false
+    namespacedIterations: false
+    preLoadImages: false
+    namespace: kube-burner
+    verifyObjects: true
+    errorOnVerify: true
+    jobPause: 1s
+    waitWhenFinished: true
+    objects:
+      - objectTemplate: perf-test-config/templates/vmi.yaml
+        replicas: 5
+        wait: true
+        waitOptions:
+          kind: VirtualMachineInstance
+          labelSelector: {kube-burner-job: cluster-saturation}
+          forCondition: Running
+        inputVars:
+          name: kube-burner

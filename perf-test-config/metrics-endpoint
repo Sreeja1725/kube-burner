@@ -1,0 +1,7 @@
+- endpoint: https://localhost:9090
+  metrics: [perf-test-config/metrics/metrics.yaml]
+  indexer:
+    type: local
+    metricsDirectory: metrics/result
+    createTarball: true
+    tarballName: metrics.tgz

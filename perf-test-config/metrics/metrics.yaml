@@ -1,0 +1,60 @@
+# API server: CPU & Memory
+
+- query: avg(sum(rate(container_cpu_usage_seconds_total{pod=~"kube-apiserver.*", container!="",container!="POD"}[{{.elapsed}}])) by (pod))
+  metricName: KubeAPIServerCPUUsage
+
+- query: avg(avg_over_time(container_memory_rss{container="kube-apiserver"}[{{.elapsed}}]))
+  metricName: KubeAPIServerMemoryUsage
+
+# Controller Manager: CPU & Memory
+
+- query: avg(sum(rate(container_cpu_usage_seconds_total{pod=~"kube-controller-manager.*", container!="",container!="POD"}[{{.elapsed}}])) by (pod))
+  metricName: KubeControllerManagerCPUUsage
+
+- query: max(avg_over_time(container_memory_rss{container="kube-controller-manager"}[{{.elapsed}}]))
+  metricName: KubeControllerManagerMemoryUsage
+
+# Topo-aware-scheduler: CPU & Memory
+
+- query: avg(sum(rate(container_cpu_usage_seconds_total{pod=~"topo-aware-scheduler.*", container!="",container!="POD"}[{{.elapsed}}]))by (pod))
+  metricName: TopoAwareSchedulerCPUUsage
+
+- query: avg(avg_over_time(container_memory_rss{pod=~"topo-aware-scheduler.*", container!="POD", container!=""}[{{.elapsed}}]))
+  metricName: TopoAwareSchedulerMemoryUsage
+
+#  virt-api: CPU & Memory
+- query: max(avg_over_time(container_memory_rss{pod=~"virt-api.*", container!="POD", container!=""}[{{.elapsed}}]))
+  metricName: VirtAPIMemoryUsage
+
+- query: avg(sum(rate(container_cpu_usage_seconds_total{namespace="kubevirt",pod=~"virt-api.*", container!="",container!="POD"}[{{.elapsed}}]))by (pod))
+  metricName: VirtAPICPUUsage
+
+# virt-controller: CPU & Memory
+- query: max(avg_over_time(container_memory_rss{pod=~"virt-controller.*", container!="POD", container!=""}[{{.elapsed}}]))
+  metricName: VirtControllerMemoryUsage
+
+- query: avg(sum(rate(container_cpu_usage_seconds_total{namespace="kubevirt",pod=~"virt-controller.*", container!="",container!="POD"}[{{.elapsed}}]))by (pod))
+  metricName: VirtControllerCPUUsage
+
+# etcd: CPU & Memory
+- query: avg(rate(process_cpu_seconds_total{job="etcd"}[{{.elapsed}}]))
+  metricName: etcdCPUUsage
+
+- query: avg(avg_over_time(process_resident_memory_bytes{job="etcd"}[{{.elapsed}}]))
+  metricName: etcdResidentMemory
+
+# vmi creation -> Running latency
+- query: histogram_quantile(0.99, sum(rate(kubevirt_vmi_phase_transition_time_from_creation_seconds_bucket{phase="Running"}[{{.elapsed}}])) by (le))
+  metricName: vmiCreationToRunningP99
+
+# vmi creation -> Scheduled latency
+- query: histogram_quantile(0.99, sum(rate(kubevirt_vmi_phase_transition_time_from_creation_seconds_bucket{phase="Scheduled"}[{{.elapsed}}])) by (le))
+  metricName: vmiCreationToScheduledP99
+
+# vmi creation -> Scheduling latency
+- query: histogram_quantile(0.99, sum(rate(kubevirt_vmi_phase_transition_time_from_creation_seconds_bucket{phase="Scheduling"}[{{.elapsed}}])) by (le))
+  metricName: vmiCreationToSchedulingP99
+
+# topo-aware-scheduler scheduling latency
+- query:  histogram_quantile(0.99, sum(rate(scheduler_e2e_scheduling_duration_seconds_bucket[{{.elapsed}}])) by (le,plugin))
+  metricName: topoAwareSchedulerSchedulingP99
